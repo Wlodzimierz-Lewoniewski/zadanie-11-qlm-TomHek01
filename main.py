@@ -1,60 +1,54 @@
 import math
-from collections import Counter, defaultdict
+from collections import defaultdict
 
-def tokenize(text):
+def split_text(text):
 
-    return text.lower().split()
+    return text.lower().replace('.', '').split()
 
-def calculate_probabilities(documents, query, lambda_param=0.5):
+def compute_probabilities(documents, search_query, param=0.5):
 
-    tokenized_docs = [tokenize(doc) for doc in documents]
-    query_tokens = tokenize(query)
+    tokenized_documents = [split_text(doc) for doc in documents]
+    tokenized_query = split_text(search_query)
 
-    doc_term_counts = [Counter(doc) for doc in tokenized_docs]
-    corpus_term_count = Counter(term for doc in tokenized_docs for term in doc)
-    corpus_size = sum(corpus_term_count.values())
+    corpus_frequency = defaultdict(int)
+    for doc in tokenized_documents:
+        for term in doc:
+            corpus_frequency[term] += 1
+    total_terms = sum(corpus_frequency.values())
 
-    doc_probabilities = []
+    results = []
 
-    for idx, doc_count in enumerate(doc_term_counts):
-        doc_size = sum(doc_count.values())
-        log_prob = 0  
+    for index, doc in enumerate(tokenized_documents):
+        doc_length = len(doc)
+        term_frequency = defaultdict(int)
 
-        for term in query_tokens:
-            
-            doc_term_freq = doc_count.get(term, 0)
-            
-            corpus_term_freq = corpus_term_count.get(term, 0)
+        for term in doc:
+            term_frequency[term] += 1
 
-            smoothed_prob = (
-                lambda_param * (doc_term_freq / doc_size) +
-                (1 - lambda_param) * (corpus_term_freq / corpus_size)
+        log_probability = 0
+        for term in tokenized_query:
+            term_in_doc_freq = term_frequency.get(term, 0)
+            term_in_corpus_freq = corpus_frequency.get(term, 0)
+
+            smoothed_probability = (
+                param * (term_in_doc_freq / doc_length if doc_length > 0 else 0) +
+                (1 - param) * (term_in_corpus_freq / total_terms if total_terms > 0 else 0)
             )
 
-            if smoothed_prob > 0:
-                log_prob += math.log(smoothed_prob)
+            if smoothed_probability > 0:
+                log_probability += math.log(smoothed_probability)
 
-        doc_probabilities.append((idx, log_prob))
+        results.append((index, log_probability))
 
-    doc_probabilities.sort(key=lambda x: (round(x[1], 10), x[0]), reverse=True)
+    results.sort(key=lambda x: (-x[1], x[0]))
 
-    return doc_probabilities
+    return [index for index, _ in results]
 
-def main():
+num_docs = int(input())
+documents_list = [input().strip() for _ in range(num_docs)]
+query_input = input().strip()
 
-    n = int(input())
-    documents = []
+x = compute_probabilities(documents_list, query_input)
 
-    for _ in range(n):
-        documents.append(input().strip())
+print(x)
 
-    query = input().strip()
-
-    lambda_param = 0.5
-    ranked_docs = calculate_probabilities(documents, query, lambda_param)
-
-    result = [idx for idx, _ in ranked_docs]
-    print(result)
-
-if __name__ == "__main__":
-    main()
